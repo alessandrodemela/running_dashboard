@@ -67,8 +67,13 @@ const parseWB = (wb: string | null): number | null => {
   return isNaN(n) ? null : n;
 };
 
+const parseLocalDate = (value: string) => {
+  const [year, month, day] = value.split('T')[0].split('-').map(Number);
+  return new Date(year, month - 1, day);
+};
+
 const fmtDate = (d: string) =>
-  new Date(d).toLocaleDateString('it-IT', { day: '2-digit', month: 'short' });
+  parseLocalDate(d).toLocaleDateString('it-IT', { day: '2-digit', month: 'short' });
 
 const RACE_DATE = new Date('2026-06-25T09:00:00');
 
@@ -239,8 +244,34 @@ export default function Dashboard() {
 
   // ── Next session ─────────────────────────────────────────────
   const nextUscita = useMemo(() =>
-    uscite.find(u => !completedIds.has(u.id_key)),
-    [uscite, completedIds]
+    (() => {
+      const lastLogged = [...sessions].sort((a, b) =>
+        parseLocalDate(a.data).getTime() - parseLocalDate(b.data).getTime()
+      ).at(-1);
+      const lastLoggedUscita = lastLogged?.id_uscita_piano ? usciteMap[lastLogged.id_uscita_piano] : null;
+
+      if (lastLoggedUscita) {
+        return uscite
+          .filter(u =>
+            u.settimana > lastLoggedUscita.settimana ||
+            (u.settimana === lastLoggedUscita.settimana && u.numero_uscita > lastLoggedUscita.numero_uscita)
+          )
+          .sort((a, b) => a.settimana - b.settimana || a.numero_uscita - b.numero_uscita)
+          .find(u => !completedIds.has(u.id_key));
+      }
+
+      const currentWeek = settimane.find(({ data_inizio, data_fine }) => {
+        const start = parseLocalDate(data_inizio);
+        const end = parseLocalDate(data_fine);
+        return now >= start && now <= end;
+      })?.settimana;
+
+      return uscite
+        .filter(u => currentWeek === undefined || u.settimana >= currentWeek)
+        .sort((a, b) => a.settimana - b.settimana || a.numero_uscita - b.numero_uscita)
+        .find(u => !completedIds.has(u.id_key));
+    })(),
+    [sessions, uscite, usciteMap, settimane, completedIds, now]
   );
 
   // ── Plan by week ─────────────────────────────────────────────
@@ -368,10 +399,9 @@ export default function Dashboard() {
           },
           {
             tag: 'SETTIMANA',
-            val: `${planByWeek.filter(w => {
-              const now2 = new Date();
-              return w.meta && new Date(w.meta.data_inizio) <= now2 && new Date(w.meta.data_fine) >= now2;
-            })[0]?.week ?? '—'}`,
+            val: `${planByWeek.find(w => {
+              return w.meta && now >= parseLocalDate(w.meta.data_inizio) && now <= parseLocalDate(w.meta.data_fine);
+            })?.week ?? '—'}`,
             sub: `di ${settimane.length} totali`,
             color: 'var(--text)',
           },
@@ -507,11 +537,10 @@ export default function Dashboard() {
         <SectionHeader tag="PIANO DI ALLENAMENTO" title="Settimane 1–6 → Gara 25 Giugno" />
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 10 }}>
           {planByWeek.map(({ week, meta, items }) => {
-            const nowD     = new Date();
-            const start    = meta ? new Date(meta.data_inizio) : null;
-            const end      = meta ? new Date(meta.data_fine)   : null;
-            const isCurrent = start && end && nowD >= start && nowD <= end;
-            const isPast    = end && nowD > end;
+            const start    = meta ? parseLocalDate(meta.data_inizio) : null;
+            const end      = meta ? parseLocalDate(meta.data_fine)   : null;
+            const isCurrent = start && end && now >= start && now <= end;
+            const isPast    = end && now > end;
             const isRace    = week === 6;
             const doneCount = items.filter(i => i.done).length;
             const pct       = Math.round((doneCount / items.length) * 100);

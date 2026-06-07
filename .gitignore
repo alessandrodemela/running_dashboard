@@ -1,1 +1,19 @@
+# environment files
 .env
+.env.*
+
+# dependencies
+node_modules/
+
+# next.js build output and caches
+.next/
+out/
+
+# logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# system files
+.DS_Store
