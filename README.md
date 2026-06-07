@@ -47,6 +47,11 @@ app/
   layout.tsx   → HTML shell + Google Fonts
   globals.css  → CSS variables + animazioni
   page.tsx     → Dashboard completo (client component)
+  api/coach    → Coach endpoint per analisi e briefing
+components/
+  CoachPanel.tsx → UI del coach dentro la dashboard
+lib/
+  coach.ts     → parsing, heuristics e tipi condivisi
 ```
 
 ---
@@ -70,4 +75,26 @@ app/
 - 🗓 Piano settimanale con progress bar e dot per sessione
 - 📋 Log sessioni con tabella completa
 - 🎯 Prossima sessione in evidenza
+- 🤖 AI coach con analisi, briefing pre-corsa e review post-run
 - 🏁 Strategia di gara
+
+---
+
+## AI Coach
+
+L’endpoint `POST /api/coach` legge Supabase, costruisce un contesto strutturato e:
+
+- usa OpenAI se `OPENAI_API_KEY` è presente
+- altrimenti torna a un’analisi locale deterministica
+
+Variabili utili:
+
+- `OPENAI_API_KEY`
+- `OPENAI_MODEL` (opzionale, default `gpt-4.1-mini`)
+
+Il pannello AI compare già nella dashboard e supporta:
+
+- `Analizza ultime corse`
+- `Briefing pre-corsa`
+- `Aggiorna piano`
+- `Post-corsa`

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo, CSSProperties } from 'react';
 import { createClient } from '@supabase/supabase-js';
+import CoachPanel from '@/components/CoachPanel';
 import {
   AreaChart, Area, BarChart, Bar,
   XAxis, YAxis, CartesianGrid, Tooltip,
@@ -412,6 +413,11 @@ export default function Dashboard() {
             <div className="mono" style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 5 }}>{sub}</div>
           </div>
         ))}
+      </div>
+
+      {/* ══════ AI COACH ══════ */}
+      <div style={{ marginBottom: 20 }}>
+        <CoachPanel />
       </div>
 
       {/* ══════ CHARTS ROW 1: Pace + RPE ══════ */}
