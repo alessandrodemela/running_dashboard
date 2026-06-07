@@ -91,6 +91,7 @@ Variabili utili:
 
 - `OPENAI_API_KEY`
 - `OPENAI_MODEL` (opzionale, default `gpt-4.1-mini`)
+- `SUPABASE_SERVICE_ROLE_KEY` per applicare in modo sicuro le modifiche approvate al piano
 
 Il pannello AI compare già nella dashboard e supporta:
 
@@ -98,3 +99,5 @@ Il pannello AI compare già nella dashboard e supporta:
 - `Briefing pre-corsa`
 - `Aggiorna piano`
 - `Post-corsa`
+
+Quando l’AI propone una modifica, la dashboard mostra before/after e richiede conferma prima di salvare il cambio in `uscite_piano`.

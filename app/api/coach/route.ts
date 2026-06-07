@@ -117,6 +117,7 @@ async function callOpenAI(context: ReturnType<typeof buildCoachContext>): Promis
               risks: ['string'],
               recommendation: 'string',
               next_session: 'object | null',
+              change_proposal: 'object | null',
               pre_run_brief: 'object | null',
               plan_changes: [{ title: 'string', detail: 'string' }],
               source: {

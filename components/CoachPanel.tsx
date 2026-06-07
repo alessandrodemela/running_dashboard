@@ -7,8 +7,8 @@ import type { CoachRequestType, CoachResponse } from '@/lib/coach';
 const panelStyle: CSSProperties = {
   background: 'linear-gradient(180deg, rgba(255,77,31,0.08), rgba(255,255,255,0.02))',
   border: '1px solid rgba(255,77,31,0.22)',
-  borderRadius: 16,
-  padding: '18px 18px 16px',
+  borderRadius: 14,
+  padding: '14px 14px 12px',
 };
 
 const buttons: { type: CoachRequestType; title: string; description: string }[] = [
@@ -37,10 +37,10 @@ const buttons: { type: CoachRequestType; title: string; description: string }[] 
 function StatusPill({ risk }: { risk: CoachResponse['risk_level'] }) {
   const styles =
     risk === 'high'
-      ? { color: 'var(--orange)', bg: 'rgba(255,77,31,0.16)', text: 'ALTO' }
+      ? { color: 'var(--orange)', bg: 'rgba(255,77,31,0.16)', text: 'ATTENZIONE' }
       : risk === 'medium'
-        ? { color: 'var(--yellow)', bg: 'rgba(255,201,60,0.14)', text: 'MEDIO' }
-        : { color: 'var(--green)', bg: 'rgba(0,217,144,0.14)', text: 'BASSO' };
+        ? { color: 'var(--yellow)', bg: 'rgba(255,201,60,0.14)', text: 'DA TENERE' }
+        : { color: 'var(--green)', bg: 'rgba(0,217,144,0.14)', text: 'OK' };
 
   return (
     <span
@@ -55,7 +55,7 @@ function StatusPill({ risk }: { risk: CoachResponse['risk_level'] }) {
         fontWeight: 700,
       }}
     >
-      RISK {styles.text}
+      CARICO {styles.text}
     </span>
   );
 }
@@ -65,10 +65,14 @@ export default function CoachPanel() {
   const [userMessage, setUserMessage] = useState('');
   const [response, setResponse] = useState<CoachResponse | null>(null);
   const [loading, setLoading] = useState(false);
+  const [applying, setApplying] = useState(false);
+  const [applyMessage, setApplyMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [collapsed, setCollapsed] = useState(false);
 
   async function runCoach(type: CoachRequestType = requestType) {
     setLoading(true);
+    setApplyMessage(null);
     setError(null);
 
     try {
@@ -97,6 +101,59 @@ export default function CoachPanel() {
     }
   }
 
+  async function applyProposal() {
+    if (!response?.change_proposal) return;
+
+    const confirmed = window.confirm(
+      `Applico questa modifica a ${response.change_proposal.target_label}?\n\nMotivo: ${response.change_proposal.reason}`,
+    );
+    if (!confirmed) return;
+
+    setApplying(true);
+    setError(null);
+    setApplyMessage(null);
+
+    try {
+      const res = await fetch('/api/coach/apply', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ proposal: response.change_proposal }),
+      });
+
+      const data = await res.json() as {
+        ok?: boolean;
+        error?: string;
+        updated?: {
+          target_id: string;
+          target_label: string;
+          content: string;
+        };
+      };
+
+      if (!res.ok || !data.ok || !data.updated) {
+        if (res.status === 409 && data.updated) {
+          throw new Error('La proposta è diventata obsoleta. Ricarica l’analisi e riprova.');
+        }
+        throw new Error(data.error || 'Applicazione fallita.');
+      }
+
+      setApplyMessage(`Aggiornato ${data.updated.target_label} con successo.`);
+      setResponse((current) => current ? {
+        ...current,
+        next_session: current.next_session && current.change_proposal && current.change_proposal.target_id === data.updated?.target_id
+          ? { ...current.next_session, content: data.updated.content }
+          : current.next_session,
+        change_proposal: null,
+      } : current);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Errore sconosciuto.');
+    } finally {
+      setApplying(false);
+    }
+  }
+
   useEffect(() => {
     void runCoach('analyze_last_runs');
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -109,7 +166,7 @@ export default function CoachPanel() {
           <div className="mono" style={{ fontSize: 10, color: 'var(--orange)', letterSpacing: '0.22em', marginBottom: 6 }}>
             AI COACH
           </div>
-          <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)' }}>
+          <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>
             Assistente operativo per analisi, piano e briefing pre-corsa
           </div>
           <div className="mono" style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 5 }}>
@@ -117,10 +174,28 @@ export default function CoachPanel() {
           </div>
         </div>
 
-        {response && <StatusPill risk={response.risk_level} />}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          {response && <StatusPill risk={response.risk_level} />}
+          <button
+            type="button"
+            onClick={() => setCollapsed((value) => !value)}
+            style={{
+              border: '1px solid var(--border)',
+              background: 'rgba(255,255,255,0.02)',
+              color: 'var(--text)',
+              borderRadius: 999,
+              padding: '7px 10px',
+              fontSize: 11,
+              fontWeight: 700,
+              cursor: 'pointer',
+            }}
+          >
+            {collapsed ? 'Mostra dettagli' : 'Comprimi coach'}
+          </button>
+        </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 10, marginBottom: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 8, marginBottom: 10 }}>
         {buttons.map((button) => {
           const active = button.type === requestType;
           return (
@@ -130,8 +205,8 @@ export default function CoachPanel() {
               onClick={() => void runCoach(button.type)}
               style={{
                 textAlign: 'left',
-                borderRadius: 12,
-                padding: '14px 14px 13px',
+                borderRadius: 11,
+                padding: '11px 12px 10px',
                 border: `1px solid ${active ? 'rgba(255,77,31,0.45)' : 'var(--border)'}`,
                 background: active ? 'rgba(255,77,31,0.08)' : 'rgba(255,255,255,0.02)',
                 color: 'var(--text)',
@@ -145,10 +220,10 @@ export default function CoachPanel() {
                 event.currentTarget.style.transform = 'translateY(0)';
               }}
             >
-              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 5, color: active ? 'var(--orange)' : 'var(--text)' }}>
+              <div style={{ fontSize: 12.5, fontWeight: 700, marginBottom: 4, color: active ? 'var(--orange)' : 'var(--text)' }}>
                 {button.title}
               </div>
-              <div className="mono" style={{ fontSize: 10, color: 'var(--text-dim)', lineHeight: 1.5 }}>
+              <div className="mono" style={{ fontSize: 9.5, color: 'var(--text-dim)', lineHeight: 1.45 }}>
                 {button.description}
               </div>
             </button>
@@ -156,27 +231,28 @@ export default function CoachPanel() {
         })}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 0.9fr', gap: 12 }}>
+      {!collapsed && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 0.9fr', gap: 10 }}>
         <div>
           <label className="mono" style={{ fontSize: 9, color: 'var(--text-dim)', letterSpacing: '0.18em', display: 'block', marginBottom: 6 }}>
-            NOTA RAPIDA
+            NOTA OPERATIVA
           </label>
           <textarea
             value={userMessage}
             onChange={(event) => setUserMessage(event.target.value)}
-            placeholder="Esempio: oggi ho caldo, le gambe sono pesanti, oppure 'voglio capire se sto andando troppo forte'."
-            rows={4}
+            placeholder="Esempio: oggi ho caldo, gambe pesanti, oppure voglio capire se sto partendo troppo forte."
+            rows={3}
             style={{
               width: '100%',
               resize: 'vertical',
-              borderRadius: 12,
+              borderRadius: 11,
               border: '1px solid var(--border)',
               background: 'rgba(255,255,255,0.02)',
               color: 'var(--text)',
-              padding: '12px 14px',
+              padding: '10px 12px',
               fontFamily: 'JetBrains Mono, monospace',
-              fontSize: 12,
-              lineHeight: 1.6,
+              fontSize: 11.5,
+              lineHeight: 1.5,
               outline: 'none',
             }}
           />
@@ -189,8 +265,8 @@ export default function CoachPanel() {
             disabled={loading}
             style={{
               border: 'none',
-              borderRadius: 12,
-              padding: '12px 14px',
+              borderRadius: 11,
+              padding: '10px 12px',
               background: loading ? 'rgba(255,77,31,0.45)' : 'var(--orange)',
               color: 'white',
               fontWeight: 700,
@@ -200,10 +276,11 @@ export default function CoachPanel() {
             {loading ? 'Sto leggendo i dati...' : 'Lancia coach'}
           </button>
           <div className="mono" style={{ fontSize: 10, color: 'var(--text-muted)', lineHeight: 1.5 }}>
-            Se hai configurato `OPENAI_API_KEY`, la risposta usa il modello AI. Altrimenti scatta il fallback analitico locale.
+            Con `OPENAI_API_KEY` il coach usa il modello AI. Senza chiave, usa il fallback analitico locale.
           </div>
         </div>
-      </div>
+        </div>
+      )}
 
       {error && (
         <div style={{
@@ -216,37 +293,75 @@ export default function CoachPanel() {
           <div className="mono" style={{ fontSize: 10, color: 'var(--orange)', letterSpacing: '0.18em', marginBottom: 6 }}>
             ERRORE COACH
           </div>
-          <div style={{ fontSize: 13, color: 'var(--text)' }}>{error}</div>
+            <div style={{ fontSize: 12.5, color: 'var(--text)' }}>{error}</div>
+        </div>
+      )}
+
+      {applyMessage && (
+        <div style={{
+          marginTop: 14,
+          border: '1px solid rgba(0,217,144,0.25)',
+          borderRadius: 12,
+          padding: '12px 14px',
+          background: 'rgba(0,217,144,0.06)',
+        }}>
+          <div className="mono" style={{ fontSize: 10, color: 'var(--green)', letterSpacing: '0.18em', marginBottom: 6 }}>
+            MODIFICA APPLICATA
+          </div>
+          <div style={{ fontSize: 13, color: 'var(--text)' }}>{applyMessage}</div>
         </div>
       )}
 
       {response && (
         <div style={{ marginTop: 16, display: 'grid', gap: 12 }}>
-          <div style={{ padding: '14px 15px', borderRadius: 12, background: 'rgba(255,255,255,0.025)', border: '1px solid var(--border)' }}>
+          <div style={{ padding: '12px 13px', borderRadius: 11, background: 'rgba(255,255,255,0.025)', border: '1px solid var(--border)' }}>
             <div className="mono" style={{ fontSize: 9, color: 'var(--text-dim)', letterSpacing: '0.18em', marginBottom: 8 }}>
               SINTESI
             </div>
-            <div style={{ fontSize: 14, lineHeight: 1.7, color: 'var(--text)' }}>{response.summary}</div>
-            <div style={{ fontSize: 14, lineHeight: 1.7, color: 'var(--text-dim)', marginTop: 8 }}>{response.recommendation}</div>
+            <div style={{ fontSize: 13, lineHeight: 1.55, color: 'var(--text)' }}>{response.summary}</div>
+            <div style={{ fontSize: 13, lineHeight: 1.55, color: 'var(--text-dim)', marginTop: 6 }}>{response.recommendation}</div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
-            <div style={{ padding: '14px 15px', borderRadius: 12, background: 'rgba(58,126,255,0.07)', border: '1px solid rgba(58,126,255,0.18)' }}>
-              <div className="mono" style={{ fontSize: 9, color: 'var(--blue)', letterSpacing: '0.18em', marginBottom: 8 }}>
-                PUNTI CHIAVE
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 8 }}>
+            <div style={{ padding: '11px 12px', borderRadius: 11, background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)' }}>
+              <div className="mono" style={{ fontSize: 9, color: 'var(--text-dim)', letterSpacing: '0.18em', marginBottom: 6 }}>
+                LEGENDA
               </div>
-              <ul style={{ paddingLeft: 16, display: 'grid', gap: 6, color: 'var(--text-dim)', fontSize: 13, lineHeight: 1.55 }}>
+              <div style={{ fontSize: 12.5, color: 'var(--text)', lineHeight: 1.45 }}>
+                Il coach usa i dati per dire se il carico è gestibile, da tenere sotto controllo o da correggere.
+              </div>
+            </div>
+            <div style={{ padding: '11px 12px', borderRadius: 11, background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)' }}>
+              <div className="mono" style={{ fontSize: 9, color: 'var(--text-dim)', letterSpacing: '0.18em', marginBottom: 6 }}>
+                STATO ATTUALE
+              </div>
+              <div style={{ fontSize: 12.5, color: 'var(--text)', lineHeight: 1.45 }}>
+                {response.risk_level === 'high'
+                  ? 'Serve prudenza sulla prossima uscita.'
+                  : response.risk_level === 'medium'
+                    ? 'Piano ok, ma con attenzione.'
+                    : 'Stato buono, continua così.'}
+              </div>
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 8 }}>
+            <div style={{ padding: '12px 13px', borderRadius: 11, background: 'rgba(58,126,255,0.07)', border: '1px solid rgba(58,126,255,0.18)' }}>
+              <div className="mono" style={{ fontSize: 9, color: 'var(--blue)', letterSpacing: '0.18em', marginBottom: 8 }}>
+                COSA CONTA
+              </div>
+              <ul style={{ paddingLeft: 16, display: 'grid', gap: 5, color: 'var(--text-dim)', fontSize: 12.5, lineHeight: 1.45 }}>
                 {response.key_points.map((item) => (
                   <li key={item}>{item}</li>
                 ))}
               </ul>
             </div>
 
-            <div style={{ padding: '14px 15px', borderRadius: 12, background: 'rgba(255,201,60,0.07)', border: '1px solid rgba(255,201,60,0.16)' }}>
+            <div style={{ padding: '12px 13px', borderRadius: 11, background: 'rgba(255,201,60,0.07)', border: '1px solid rgba(255,201,60,0.16)' }}>
               <div className="mono" style={{ fontSize: 9, color: 'var(--yellow)', letterSpacing: '0.18em', marginBottom: 8 }}>
-                RISCHI
+                COSA NON VA IGNORATO
               </div>
-              <ul style={{ paddingLeft: 16, display: 'grid', gap: 6, color: 'var(--text-dim)', fontSize: 13, lineHeight: 1.55 }}>
+              <ul style={{ paddingLeft: 16, display: 'grid', gap: 5, color: 'var(--text-dim)', fontSize: 12.5, lineHeight: 1.45 }}>
                 {response.risks.map((item) => (
                   <li key={item}>{item}</li>
                 ))}
@@ -255,30 +370,77 @@ export default function CoachPanel() {
           </div>
 
           {response.next_session && (
-            <div style={{ padding: '14px 15px', borderRadius: 12, background: 'rgba(0,217,144,0.06)', border: '1px solid rgba(0,217,144,0.16)' }}>
+            <div style={{ padding: '12px 13px', borderRadius: 11, background: 'rgba(0,217,144,0.06)', border: '1px solid rgba(0,217,144,0.16)' }}>
               <div className="mono" style={{ fontSize: 9, color: 'var(--green)', letterSpacing: '0.18em', marginBottom: 8 }}>
                 PROSSIMA USCITA
               </div>
               <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'baseline', marginBottom: 8 }}>
-                <div className="num" style={{ fontSize: 36, color: 'var(--text)' }}>{response.next_session.label}</div>
-                <div style={{ fontSize: 13, color: 'var(--text-dim)', lineHeight: 1.6 }}>{response.next_session.content}</div>
+                <div className="num" style={{ fontSize: 32, color: 'var(--text)' }}>{response.next_session.label}</div>
+                <div style={{ fontSize: 12.5, color: 'var(--text-dim)', lineHeight: 1.45 }}>{response.next_session.content}</div>
+              </div>
+            </div>
+          )}
+
+          {response.change_proposal && (
+            <div style={{ padding: '12px 13px', borderRadius: 11, background: 'rgba(255,77,31,0.05)', border: '1px solid rgba(255,77,31,0.16)' }}>
+              <div className="mono" style={{ fontSize: 9, color: 'var(--orange)', letterSpacing: '0.18em', marginBottom: 8 }}>
+                PROPOSTA PRONTA DA RIVEDERE
+              </div>
+              <div style={{ display: 'grid', gap: 10 }}>
+                <div style={{ fontSize: 13, color: 'var(--text-dim)', lineHeight: 1.6 }}>
+                  <strong style={{ color: 'var(--text)' }}>Target:</strong> {response.change_proposal.target_label}
+                </div>
+                <div style={{ fontSize: 13, color: 'var(--text-dim)', lineHeight: 1.6 }}>
+                  <strong style={{ color: 'var(--text)' }}>Motivo:</strong> {response.change_proposal.reason}
+                </div>
+                <div style={{ display: 'grid', gap: 8 }}>
+                  <div style={{ fontSize: 12, color: 'var(--text-dim)', lineHeight: 1.6 }}>
+                    <strong style={{ color: 'var(--text)' }}>Before</strong>
+                    <div style={{ whiteSpace: 'pre-wrap', marginTop: 4 }}>{response.change_proposal.before}</div>
+                  </div>
+                  <div style={{ fontSize: 12, color: 'var(--text-dim)', lineHeight: 1.6 }}>
+                    <strong style={{ color: 'var(--text)' }}>After</strong>
+                    <div style={{ whiteSpace: 'pre-wrap', marginTop: 4 }}>{response.change_proposal.after}</div>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+                  <span className="mono" style={{ fontSize: 10, color: 'var(--text-muted)' }}>
+                    Confidence {(response.change_proposal.confidence * 100).toFixed(0)}%
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => void applyProposal()}
+                    disabled={applying}
+                    style={{
+                      border: 'none',
+                      borderRadius: 10,
+                      padding: '9px 11px',
+                      background: applying ? 'rgba(255,77,31,0.5)' : 'var(--orange)',
+                      color: 'white',
+                      fontWeight: 700,
+                      cursor: applying ? 'wait' : 'pointer',
+                    }}
+                    >
+                    {applying ? 'Salvataggio...' : 'Approva e salva'}
+                  </button>
+                </div>
               </div>
             </div>
           )}
 
           {response.pre_run_brief && (
-            <div style={{ padding: '14px 15px', borderRadius: 12, background: 'rgba(255,77,31,0.05)', border: '1px solid rgba(255,77,31,0.14)' }}>
+            <div style={{ padding: '12px 13px', borderRadius: 11, background: 'rgba(255,77,31,0.05)', border: '1px solid rgba(255,77,31,0.14)' }}>
               <div className="mono" style={{ fontSize: 9, color: 'var(--orange)', letterSpacing: '0.18em', marginBottom: 8 }}>
                 BRIEFING PRE-RUN
               </div>
               <div style={{ display: 'grid', gap: 8 }}>
-                <div style={{ fontSize: 13, lineHeight: 1.6, color: 'var(--text-dim)' }}>
+                <div style={{ fontSize: 12.5, lineHeight: 1.45, color: 'var(--text-dim)' }}>
                   <strong style={{ color: 'var(--text)' }}>Warm-up:</strong> {response.pre_run_brief.warmup}
                 </div>
-                <div style={{ fontSize: 13, lineHeight: 1.6, color: 'var(--text-dim)' }}>
+                <div style={{ fontSize: 12.5, lineHeight: 1.45, color: 'var(--text-dim)' }}>
                   <strong style={{ color: 'var(--text)' }}>Target:</strong> {response.pre_run_brief.target}
                 </div>
-                <ul style={{ paddingLeft: 16, display: 'grid', gap: 6, color: 'var(--text-dim)', fontSize: 13, lineHeight: 1.55 }}>
+                <ul style={{ paddingLeft: 16, display: 'grid', gap: 5, color: 'var(--text-dim)', fontSize: 12.5, lineHeight: 1.45 }}>
                   {response.pre_run_brief.rules.map((item) => (
                     <li key={item}>{item}</li>
                   ))}
@@ -287,11 +449,11 @@ export default function CoachPanel() {
             </div>
           )}
 
-          <div style={{ padding: '14px 15px', borderRadius: 12, background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)' }}>
+          <div style={{ padding: '12px 13px', borderRadius: 11, background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)' }}>
             <div className="mono" style={{ fontSize: 9, color: 'var(--text-dim)', letterSpacing: '0.18em', marginBottom: 8 }}>
-              USCITE CONSIDERATE
+              FONTI USATE
             </div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, color: 'var(--text-dim)', fontSize: 12, lineHeight: 1.6 }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, color: 'var(--text-dim)', fontSize: 11.5, lineHeight: 1.45 }}>
               <span>Sessioni: {response.source.sessions_considered}</span>
               <span>Ultima: {response.source.latest_session_label ?? '—'}</span>
               <span>Prossima: {response.source.next_session_label ?? '—'}</span>

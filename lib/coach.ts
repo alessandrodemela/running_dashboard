@@ -43,6 +43,17 @@ export interface CoachAction {
   detail: string;
 }
 
+export interface PlanChangeProposal {
+  operation: 'replace_content';
+  target_id: string;
+  target_label: string;
+  before: string;
+  after: string;
+  reason: string;
+  confidence: number;
+  requires_confirmation: boolean;
+}
+
 export interface CoachResponse {
   request_type: CoachRequestType;
   summary: string;
@@ -54,6 +65,7 @@ export interface CoachResponse {
     label: string;
     content: string;
   } | null;
+  change_proposal: PlanChangeProposal | null;
   pre_run_brief: {
     warmup: string;
     target: string;
@@ -257,6 +269,33 @@ export function buildCoachResponse(context: CoachContext): CoachResponse {
     });
   }
 
+  const changeProposal: PlanChangeProposal | null =
+    nextSession && (context.request_type === 'update_plan' || context.request_type === 'post_run_review')
+      ? {
+          operation: 'replace_content',
+          target_id: nextSession.id_key,
+          target_label: `S${nextSession.settimana}.${nextSession.numero_uscita}`,
+          before: nextSession.contenuto,
+          after: `${nextSession.contenuto}\n\nNota coach:\n${[
+            riskLevel === 'high'
+              ? '- Riduci il carico se il recupero resta incompleto.'
+              : riskLevel === 'medium'
+                ? '- Mantieni la struttura ma conserva il primo blocco più prudente.'
+                : '- Conferma la struttura e tieni il focus sulla continuità.',
+            '- Usa walk recovery vera, non trotto.',
+            '- Non partire piano: entra nel ritmo utile con controllo.',
+          ].join('\n')}`,
+          reason:
+            riskLevel === 'high'
+              ? 'Carico recente alto: conviene alleggerire la prossima uscita.'
+              : riskLevel === 'medium'
+                ? 'Serve una correzione prudente del contenuto della prossima uscita.'
+                : 'Il piano può restare quasi invariato con una nota operativa più chiara.',
+          confidence: riskLevel === 'high' ? 0.86 : riskLevel === 'medium' ? 0.74 : 0.62,
+          requires_confirmation: true,
+        }
+      : null;
+
   const preRunBrief =
     context.request_type === 'pre_race_brief' || context.request_type === 'post_run_review'
       ? {
@@ -297,6 +336,7 @@ export function buildCoachResponse(context: CoachContext): CoachResponse {
           content: nextSession.contenuto,
         }
       : null,
+    change_proposal: changeProposal,
     pre_run_brief: preRunBrief,
     plan_changes: planChanges,
     source: {
