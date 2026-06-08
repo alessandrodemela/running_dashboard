@@ -430,7 +430,7 @@ export default function Dashboard() {
       </div>
 
       {/* ══════ CHARTS ROW 1: Pace + RPE ══════ */}
-      <div style={{ display: 'grid', gridTemplateColumns: '3fr 2fr', gap: 14, marginBottom: 14 }}>
+      <div className="grid grid-cols-1 md:grid-cols-[3fr_2fr] gap-[14px] mb-[14px]">
 
         {/* Pace evolution */}
         <div style={card}>
@@ -495,7 +495,7 @@ export default function Dashboard() {
       </div>
 
       {/* ══════ CHARTS ROW 2: Walk Breaks + Distanza ══════ */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 20 }}>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-[14px] mb-[20px]">
 
         {/* Walk Breaks */}
         <div style={card}>
