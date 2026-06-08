@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import type { CSSProperties } from 'react';
 import type { CoachRequestType, CoachResponse } from '@/lib/coach';
 
@@ -62,8 +62,7 @@ function StatusPill({ risk }: { risk: CoachResponse['risk_level'] }) {
 
 export default function CoachPanel() {
   const [requestType, setRequestType] = useState<CoachRequestType>('analyze_last_runs');
-  const [provider, setProvider] = useState<'auto' | 'openai' | 'anthropic' | 'local'>('auto');
-  const [model, setModel] = useState('gpt-5.4-mini');
+  const [model, setModel] = useState('claude-sonnet-4-6', 'claude-haiku-4-5-20251001');
   const [userMessage, setUserMessage] = useState('');
   const [response, setResponse] = useState<CoachResponse | null>(null);
   const [loading, setLoading] = useState(false);
@@ -88,7 +87,7 @@ export default function CoachPanel() {
         body: JSON.stringify({
           request_type: type,
           user_message: userMessage.trim() || undefined,
-          provider,
+          provider: 'anthropic',
           model: model.trim() || undefined,
         }),
       });
@@ -161,12 +160,7 @@ export default function CoachPanel() {
     }
   }
 
-  useEffect(() => {
-    if (!collapsed && !response && !loading) {
-      void runCoach('analyze_last_runs');
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [collapsed]);
+  // Auto-run rimosso: il coach si lancia solo manualmente tramite il bottone.
 
   return (
     <section style={panelStyle} className="fade-up">
@@ -232,31 +226,7 @@ export default function CoachPanel() {
             })}
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.4fr 0.9fr', gap: 10 }}>
-            <label style={{ display: 'grid', gap: 6 }}>
-              <span className="mono" style={{ fontSize: 9, color: 'var(--text-dim)', letterSpacing: '0.18em' }}>
-                PROVIDER
-              </span>
-              <select
-                value={provider}
-                onChange={(event) => setProvider(event.target.value as typeof provider)}
-                style={{
-                  width: '100%',
-                  borderRadius: 11,
-                  border: '1px solid var(--border)',
-                  background: 'rgba(255,255,255,0.02)',
-                  color: 'var(--text)',
-                  padding: '10px 12px',
-                  outline: 'none',
-                }}
-              >
-                <option value="auto">Auto</option>
-                <option value="openai">OpenAI</option>
-                <option value="anthropic">Anthropic</option>
-                <option value="local">Locale</option>
-              </select>
-            </label>
-
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.4fr 0.9fr', gap: 10 }}>
             <label style={{ display: 'grid', gap: 6 }}>
               <span className="mono" style={{ fontSize: 9, color: 'var(--text-dim)', letterSpacing: '0.18em' }}>
                 MODELLO
@@ -274,10 +244,8 @@ export default function CoachPanel() {
                   outline: 'none',
                 }}
               >
-                <option value="gpt-5.4-mini">gpt-5.4-mini</option>
-                <option value="gpt-4.1-mini">gpt-4.1-mini</option>
-                <option value="claude-3-5-haiku-20241022">claude-3-5-haiku-20241022</option>
-                <option value="claude-sonnet-4-20250514">claude-sonnet-4-20250514</option>
+                <option value="claude-sonnet-4-6">claude-sonnet-4-6</option>
+                <option value="claude-haiku-4-5-20251001">claude-haiku-4-5-20251001</option>
               </select>
             </label>
 
@@ -321,11 +289,8 @@ export default function CoachPanel() {
                   cursor: loading ? 'wait' : 'pointer',
                 }}
               >
-                {loading ? 'Sto leggendo i dati...' : 'Lancia coach'}
+                {loading ? 'Running...' : 'Lancia coach'}
               </button>
-              <div className="mono" style={{ fontSize: 10, color: 'var(--text-muted)', lineHeight: 1.5 }}>
-                Con `OPENAI_API_KEY` il coach usa il modello AI. Senza chiave, usa il fallback analitico locale.
-              </div>
             </div>
           </div>
         </>
@@ -499,11 +464,13 @@ export default function CoachPanel() {
                 <div style={{ fontSize: 12.5, lineHeight: 1.45, color: 'var(--text-dim)' }}>
                   <strong style={{ color: 'var(--text)' }}>Target:</strong> {response.pre_run_brief.target}
                 </div>
-                <ul style={{ paddingLeft: 16, display: 'grid', gap: 5, color: 'var(--text-dim)', fontSize: 12.5, lineHeight: 1.45 }}>
-                  {response.pre_run_brief.rules.map((item) => (
-                    <li key={item}>{item}</li>
-                  ))}
-                </ul>
+                {Array.isArray(response.pre_run_brief.rules) && response.pre_run_brief.rules.length > 0 && (
+                  <ul style={{ paddingLeft: 16, display: 'grid', gap: 5, color: 'var(--text-dim)', fontSize: 12.5, lineHeight: 1.45 }}>
+                    {response.pre_run_brief.rules.map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
+                  </ul>
+                )}
               </div>
             </div>
           )}

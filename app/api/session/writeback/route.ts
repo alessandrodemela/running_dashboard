@@ -40,8 +40,8 @@ function normalizeDate(value: string) {
   return value.includes('T') ? value.split('T')[0] : value;
 }
 
-function findPlannedSessionId(params: {
-  supabase: ReturnType<typeof createClient>;
+async function findPlannedSessionId(params: {
+  supabase: any;
   week: number;
 }) {
   const { supabase, week } = params;

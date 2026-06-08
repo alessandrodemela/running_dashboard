@@ -291,7 +291,7 @@ export function buildCoachResponse(
     context.request_type === 'pre_race_brief'
       ? 'Parti controllato ma non piano: entra subito nel ritmo previsto, con warm-up dinamico e focus sui polpacci.'
       : context.request_type === 'update_plan'
-        ? 'Il piano va mantenuto ma regolato sul trend: usa l’ultimo blocco per capire se alleggerire o consolidare.'
+        ? 'Il piano va mantenuto ma regolato sul trend: usa l\'ultimo blocco per capire se alleggerire o consolidare.'
         : riskLevel === 'high'
           ? 'Ridurrei il carico della prossima uscita o lo trasformerei in seduta tecnica/controllata.'
           : riskLevel === 'medium'
@@ -359,7 +359,7 @@ export function buildCoachResponse(
               ? 'Entra subito nel ritmo utile senza aspettare troppo: il lento iniziale ti penalizza.'
               : 'Confronta la seduta con il target previsto e cerca coerenza, non perfezione.',
           rules: [
-            'Se i polpacci si irrigidiscono, non forzare l’inerzia.',
+            'Se i polpacci si irrigidiscono, non forzare l\'inerzia.',
             'Usa walk recovery vera, non trotto.',
             'Se il caldo è alto, abbassa le ambizioni di passo ma non la qualità del lavoro.',
           ],
@@ -380,7 +380,7 @@ export function buildCoachResponse(
           ? 'Ti preparo un briefing operativo prima della corsa, con focus su partenza, warm-up e gestione del ritmo.'
           : context.request_type === 'update_plan'
             ? 'Sto valutando se il piano va mantenuto, leggermente corretto o alleggerito.'
-            : 'Sto confrontando la sessione con l’obiettivo previsto per decidere il passo successivo.',
+            : 'Sto confrontando la sessione con l\'obiettivo previsto per decidere il passo successivo.',
     risk_level: riskLevel,
     key_points: keyPoints,
     risks,
@@ -404,12 +404,43 @@ export function buildCoachResponse(
 }
 
 export function buildCoachSystemPrompt() {
-  return [
-    'Sei un running coach e athletic trainer per Ale.',
-    'Rispondi in italiano, in modo concreto, diretto e sintetico.',
-    'Non usare tono generico: analizza i dati reali, l’intero storico delle sessioni e proponi azioni operative.',
-    'Evita slow jogging come default se il contesto mostra che peggiora i polpacci.',
-    'Usa walk recovery quando serve e alza il rischio in presenza di segnali anomali.',
-    'Restituisci solo JSON valido e aderente alla struttura richiesta.',
-  ].join(' ');
+  return `Sei un running coach e athletic trainer per Ale. Rispondi SOLO con JSON valido, in italiano, concreto e sintetico.
+
+### REGOLE CRITICHE — RISPETTA SEMPRE
+
+1. **risk_level**: COPIA il valore da \`pre_calculated.risk_level\` nell'output. NON calcolarlo di nuovo. NON modificarlo. Deve essere identico.
+
+2. **source**: COPIA il valore da \`pre_calculated.source\` nell'output. Non inventare valori.
+
+3. **next_session**: Se \`pre_calculated.next_session\` è valorizzato, usalo direttamente. Se è null, metti null.
+
+4. **change_proposal**: Popolato SOLO se request_type è "update_plan" o "post_run_review". Altrimenti SEMPRE null. Se pre_calculated ha una proposta, usala come base.
+
+5. **pre_run_brief**: Popolato SOLO se request_type è "pre_race_brief" o "post_run_review". Altrimenti SEMPRE null.
+   - Deve avere SEMPRE: warmup (string), target (string), rules (array di stringhe, almeno 3 elementi).
+   - NON omettere il campo rules. NON restituire rules come stringa, deve essere un array.
+
+6. **user_message**: Se \`coach_context.user_message\` è presente, consideralo come nota operativa dell'atleta.
+   - Integra questa nota nel summary, nella recommendation e nel pre_run_brief.target.
+   - È la voce dell'atleta: ha priorità sulle considerazioni generali.
+
+7. **key_points e risks**: Scrivi analisi concrete basandoti sui dati in \`coach_context\` e sui pattern in \`pre_calculated.risk_metrics\`. Massimo 4 key_points, massimo 3 risks.
+
+### STRUTTURA OUTPUT (JSON esatto):
+{
+  "provider": "anthropic",
+  "request_type": "<copia da coach_context.request_type>",
+  "summary": "<testo originale — commento analitico di 1-2 frasi>",
+  "risk_level": "<COPIA ESATTA da pre_calculated.risk_level>",
+  "key_points": ["<punto concreto 1>", "<punto concreto 2>"],
+  "risks": ["<rischio 1>", "<rischio 2>"],
+  "recommendation": "<raccomandazione operativa 1-2 frasi>",
+  "next_session": <copia da pre_calculated.next_session oppure null>,
+  "change_proposal": <copia da pre_calculated.change_proposal se applicabile, altrimenti null>,
+  "pre_run_brief": <null oppure { "warmup": "...", "target": "...", "rules": ["...", "...", "..."] }>,
+  "plan_changes": [{ "title": "...", "detail": "..." }],
+  "source": <COPIA ESATTA da pre_calculated.source>
+}
+
+RESTITUISCI SOLO JSON VALIDO. Nessun testo prima o dopo.`;
 }

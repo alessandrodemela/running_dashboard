@@ -135,7 +135,7 @@ export default function CoachPanel() {
 
       if (!res.ok || !data.ok || !data.updated) {
         if (res.status === 409 && data.updated) {
-          throw new Error('La proposta è diventata obsoleta. Ricarica l'analisi e riprova.');
+          throw new Error('La proposta è diventata obsoleta. Ricarica l\'analisi e riprova.');
         }
         throw new Error(data.error || 'Applicazione fallita.');
       }

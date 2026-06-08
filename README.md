@@ -96,7 +96,7 @@ Variabili utili:
 - `OPENAI_API_KEY`
 - `OPENAI_MODEL` (opzionale, default `gpt-5.4-mini`)
 - `ANTHROPIC_API_KEY`
-- `ANTHROPIC_MODEL` (opzionale, default `claude-3-5-haiku-20241022`)
+- `ANTHROPIC_MODEL` (opzionale, default `claude-haiku-4-5-20251001`)
 - `COACH_PROVIDER` (opzionale, default `auto`)
 - `SUPABASE_SERVICE_ROLE_KEY` per applicare in modo sicuro le modifiche approvate al piano
 
