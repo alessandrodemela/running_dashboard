@@ -178,9 +178,6 @@ export default function CoachPanel() {
           <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>
             Assistente operativo per analisi, piano e briefing pre-corsa
           </div>
-          <div className="mono" style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 5 }}>
-            Un solo pulsante: apri, lancia l’analisi, poi decidi se leggere i dettagli.
-          </div>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
