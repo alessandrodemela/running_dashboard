@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo, CSSProperties } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import CoachPanel from '@/components/CoachPanel';
+import SessionWritebackModal, { type SessionWritebackSession } from '@/components/SessionWritebackModal';
 import {
   AreaChart, Area, BarChart, Bar,
   XAxis, YAxis, CartesianGrid, Tooltip,
@@ -23,6 +24,7 @@ interface Session {
   distanza_km: string;
   tempo_totale: string;
   passo_medio: string;
+  splits?: string | null;
   walk_breaks: string | null;
   dislivello_m: number | null;
   gambe: number;
@@ -174,6 +176,7 @@ export default function Dashboard() {
   const [loading, setLoading]     = useState(true);
   const [error, setError]         = useState<string | null>(null);
   const [now, setNow]             = useState(new Date());
+  const [writebackOpen, setWritebackOpen] = useState(false);
 
   // Live ticker
   useEffect(() => {
@@ -635,7 +638,27 @@ export default function Dashboard() {
 
       {/* ══════ SESSION LOG ══════ */}
       <div style={{ ...card, marginBottom: 20 }}>
-        <SectionHeader tag="LOG SESSIONI" title={`${sessions.length} uscite completate`} />
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+          <SectionHeader tag="LOG SESSIONI" title={`${sessions.length} uscite completate`} />
+          <button
+            type="button"
+            onClick={() => setWritebackOpen(true)}
+            disabled={!lastS}
+            style={{
+              border: '1px solid var(--border)',
+              background: lastS ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.015)',
+              color: lastS ? 'var(--text)' : 'var(--text-muted)',
+              borderRadius: 999,
+              padding: '9px 12px',
+              fontSize: 11,
+              fontWeight: 700,
+              cursor: lastS ? 'pointer' : 'not-allowed',
+              height: 'fit-content',
+            }}
+          >
+            Nuova sessione
+          </button>
+        </div>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
@@ -841,6 +864,14 @@ export default function Dashboard() {
           ))}
         </div>
       </div>
+
+      <SessionWritebackModal
+        open={writebackOpen}
+        onClose={() => setWritebackOpen(false)}
+        onSaved={(updated) => {
+          setSessions((current) => [...current, updated as Session]);
+        }}
+      />
 
       {/* ══════ FOOTER ══════ */}
       <footer style={{

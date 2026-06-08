@@ -48,8 +48,10 @@ app/
   globals.css  → CSS variables + animazioni
   page.tsx     → Dashboard completo (client component)
   api/coach    → Coach endpoint per analisi e briefing
+  api/session/writeback → Writeback ultima sessione
 components/
   CoachPanel.tsx → UI del coach dentro la dashboard
+  SessionWritebackModal.tsx → Modal per aggiornare l’ultima sessione
 lib/
   coach.ts     → parsing, heuristics e tipi condivisi
 ```
@@ -85,12 +87,17 @@ lib/
 L’endpoint `POST /api/coach` legge Supabase, costruisce un contesto strutturato e:
 
 - usa OpenAI se `OPENAI_API_KEY` è presente
+- usa Anthropic se `ANTHROPIC_API_KEY` è presente
 - altrimenti torna a un’analisi locale deterministica
+- puoi forzare il provider con `COACH_PROVIDER=auto|openai|anthropic|local`
 
 Variabili utili:
 
 - `OPENAI_API_KEY`
-- `OPENAI_MODEL` (opzionale, default `gpt-4.1-mini`)
+- `OPENAI_MODEL` (opzionale, default `gpt-5.4-mini`)
+- `ANTHROPIC_API_KEY`
+- `ANTHROPIC_MODEL` (opzionale, default `claude-3-5-haiku-20241022`)
+- `COACH_PROVIDER` (opzionale, default `auto`)
 - `SUPABASE_SERVICE_ROLE_KEY` per applicare in modo sicuro le modifiche approvate al piano
 
 Il pannello AI compare già nella dashboard e supporta:
@@ -101,3 +108,5 @@ Il pannello AI compare già nella dashboard e supporta:
 - `Post-corsa`
 
 Quando l’AI propone una modifica, la dashboard mostra before/after e richiede conferma prima di salvare il cambio in `uscite_piano`.
+
+Il writeback dell’ultima sessione passa invece da `POST /api/session/writeback` e aggiorna `preparazione_corsa_9km` tramite modal dedicato.

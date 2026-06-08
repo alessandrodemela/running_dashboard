@@ -62,18 +62,22 @@ function StatusPill({ risk }: { risk: CoachResponse['risk_level'] }) {
 
 export default function CoachPanel() {
   const [requestType, setRequestType] = useState<CoachRequestType>('analyze_last_runs');
+  const [provider, setProvider] = useState<'auto' | 'openai' | 'anthropic' | 'local'>('auto');
+  const [model, setModel] = useState('gpt-5.4-mini');
   const [userMessage, setUserMessage] = useState('');
   const [response, setResponse] = useState<CoachResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [applying, setApplying] = useState(false);
   const [applyMessage, setApplyMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(true);
+  const [showDetails, setShowDetails] = useState(false);
 
   async function runCoach(type: CoachRequestType = requestType) {
     setLoading(true);
     setApplyMessage(null);
     setError(null);
+    setShowDetails(false);
 
     try {
       const res = await fetch('/api/coach', {
@@ -84,6 +88,8 @@ export default function CoachPanel() {
         body: JSON.stringify({
           request_type: type,
           user_message: userMessage.trim() || undefined,
+          provider,
+          model: model.trim() || undefined,
         }),
       });
 
@@ -94,6 +100,7 @@ export default function CoachPanel() {
 
       setRequestType(type);
       setResponse(data);
+      setShowDetails(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Errore sconosciuto.');
     } finally {
@@ -155,9 +162,11 @@ export default function CoachPanel() {
   }
 
   useEffect(() => {
-    void runCoach('analyze_last_runs');
+    if (!collapsed && !response && !loading) {
+      void runCoach('analyze_last_runs');
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [collapsed]);
 
   return (
     <section style={panelStyle} className="fade-up">
@@ -170,12 +179,11 @@ export default function CoachPanel() {
             Assistente operativo per analisi, piano e briefing pre-corsa
           </div>
           <div className="mono" style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 5 }}>
-            Scegli un’azione, aggiungi una nota libera, e l’AI risponde sui dati reali della dashboard.
+            Un solo pulsante: apri, lancia l’analisi, poi decidi se leggere i dettagli.
           </div>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          {response && <StatusPill risk={response.risk_level} />}
           <button
             type="button"
             onClick={() => setCollapsed((value) => !value)}
@@ -190,96 +198,140 @@ export default function CoachPanel() {
               cursor: 'pointer',
             }}
           >
-            {collapsed ? 'Mostra dettagli' : 'Comprimi coach'}
+            {collapsed ? 'Apri coach' : 'Comprimi coach'}
           </button>
         </div>
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 8, marginBottom: 10 }}>
-        {buttons.map((button) => {
-          const active = button.type === requestType;
-          return (
-            <button
-              key={button.type}
-              type="button"
-              onClick={() => void runCoach(button.type)}
-              style={{
-                textAlign: 'left',
-                borderRadius: 11,
-                padding: '11px 12px 10px',
-                border: `1px solid ${active ? 'rgba(255,77,31,0.45)' : 'var(--border)'}`,
-                background: active ? 'rgba(255,77,31,0.08)' : 'rgba(255,255,255,0.02)',
-                color: 'var(--text)',
-                cursor: 'pointer',
-                transition: 'transform 0.15s ease, border-color 0.15s ease, background 0.15s ease',
-              }}
-              onMouseEnter={(event) => {
-                event.currentTarget.style.transform = 'translateY(-1px)';
-              }}
-              onMouseLeave={(event) => {
-                event.currentTarget.style.transform = 'translateY(0)';
-              }}
-            >
-              <div style={{ fontSize: 12.5, fontWeight: 700, marginBottom: 4, color: active ? 'var(--orange)' : 'var(--text)' }}>
-                {button.title}
-              </div>
-              <div className="mono" style={{ fontSize: 9.5, color: 'var(--text-dim)', lineHeight: 1.45 }}>
-                {button.description}
-              </div>
-            </button>
-          );
-        })}
       </div>
 
       {!collapsed && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 0.9fr', gap: 10 }}>
-        <div>
-          <label className="mono" style={{ fontSize: 9, color: 'var(--text-dim)', letterSpacing: '0.18em', display: 'block', marginBottom: 6 }}>
-            NOTA OPERATIVA
-          </label>
-          <textarea
-            value={userMessage}
-            onChange={(event) => setUserMessage(event.target.value)}
-            placeholder="Esempio: oggi ho caldo, gambe pesanti, oppure voglio capire se sto partendo troppo forte."
-            rows={3}
-            style={{
-              width: '100%',
-              resize: 'vertical',
-              borderRadius: 11,
-              border: '1px solid var(--border)',
-              background: 'rgba(255,255,255,0.02)',
-              color: 'var(--text)',
-              padding: '10px 12px',
-              fontFamily: 'JetBrains Mono, monospace',
-              fontSize: 11.5,
-              lineHeight: 1.5,
-              outline: 'none',
-            }}
-          />
-        </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, justifyContent: 'flex-end' }}>
-          <button
-            type="button"
-            onClick={() => void runCoach(requestType)}
-            disabled={loading}
-            style={{
-              border: 'none',
-              borderRadius: 11,
-              padding: '10px 12px',
-              background: loading ? 'rgba(255,77,31,0.45)' : 'var(--orange)',
-              color: 'white',
-              fontWeight: 700,
-              cursor: loading ? 'wait' : 'pointer',
-            }}
-          >
-            {loading ? 'Sto leggendo i dati...' : 'Lancia coach'}
-          </button>
-          <div className="mono" style={{ fontSize: 10, color: 'var(--text-muted)', lineHeight: 1.5 }}>
-            Con `OPENAI_API_KEY` il coach usa il modello AI. Senza chiave, usa il fallback analitico locale.
+        <>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 8, marginBottom: 10 }}>
+            {buttons.map((button) => {
+              const active = button.type === requestType;
+              return (
+                <button
+                  key={button.type}
+                  type="button"
+                  onClick={() => setRequestType(button.type)}
+                  style={{
+                    textAlign: 'left',
+                    borderRadius: 11,
+                    padding: '11px 12px 10px',
+                    border: `1px solid ${active ? 'rgba(255,77,31,0.45)' : 'var(--border)'}`,
+                    background: active ? 'rgba(255,77,31,0.08)' : 'rgba(255,255,255,0.02)',
+                    color: 'var(--text)',
+                    cursor: 'pointer',
+                    transition: 'transform 0.15s ease, border-color 0.15s ease, background 0.15s ease',
+                  }}
+                >
+                  <div style={{ fontSize: 12.5, fontWeight: 700, marginBottom: 4, color: active ? 'var(--orange)' : 'var(--text)' }}>
+                    {button.title}
+                  </div>
+                  <div className="mono" style={{ fontSize: 9.5, color: 'var(--text-dim)', lineHeight: 1.45 }}>
+                    {button.description}
+                  </div>
+                </button>
+              );
+            })}
           </div>
-        </div>
-        </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.4fr 0.9fr', gap: 10 }}>
+            <label style={{ display: 'grid', gap: 6 }}>
+              <span className="mono" style={{ fontSize: 9, color: 'var(--text-dim)', letterSpacing: '0.18em' }}>
+                PROVIDER
+              </span>
+              <select
+                value={provider}
+                onChange={(event) => setProvider(event.target.value as typeof provider)}
+                style={{
+                  width: '100%',
+                  borderRadius: 11,
+                  border: '1px solid var(--border)',
+                  background: 'rgba(255,255,255,0.02)',
+                  color: 'var(--text)',
+                  padding: '10px 12px',
+                  outline: 'none',
+                }}
+              >
+                <option value="auto">Auto</option>
+                <option value="openai">OpenAI</option>
+                <option value="anthropic">Anthropic</option>
+                <option value="local">Locale</option>
+              </select>
+            </label>
+
+            <label style={{ display: 'grid', gap: 6 }}>
+              <span className="mono" style={{ fontSize: 9, color: 'var(--text-dim)', letterSpacing: '0.18em' }}>
+                MODELLO
+              </span>
+              <select
+                value={model}
+                onChange={(event) => setModel(event.target.value)}
+                style={{
+                  width: '100%',
+                  borderRadius: 11,
+                  border: '1px solid var(--border)',
+                  background: 'rgba(255,255,255,0.02)',
+                  color: 'var(--text)',
+                  padding: '10px 12px',
+                  outline: 'none',
+                }}
+              >
+                <option value="gpt-5.4-mini">gpt-5.4-mini</option>
+                <option value="gpt-4.1-mini">gpt-4.1-mini</option>
+                <option value="claude-3-5-haiku-20241022">claude-3-5-haiku-20241022</option>
+                <option value="claude-sonnet-4-20250514">claude-sonnet-4-20250514</option>
+              </select>
+            </label>
+
+            <div>
+              <label className="mono" style={{ fontSize: 9, color: 'var(--text-dim)', letterSpacing: '0.18em', display: 'block', marginBottom: 6 }}>
+                NOTA OPERATIVA
+              </label>
+              <textarea
+                value={userMessage}
+                onChange={(event) => setUserMessage(event.target.value)}
+                placeholder="Esempio: oggi ho caldo, gambe pesanti, oppure voglio capire se sto partendo troppo forte."
+                rows={3}
+                style={{
+                  width: '100%',
+                  resize: 'vertical',
+                  borderRadius: 11,
+                  border: '1px solid var(--border)',
+                  background: 'rgba(255,255,255,0.02)',
+                  color: 'var(--text)',
+                  padding: '10px 12px',
+                  fontFamily: 'JetBrains Mono, monospace',
+                  fontSize: 11.5,
+                  lineHeight: 1.5,
+                  outline: 'none',
+                }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, justifyContent: 'flex-end' }}>
+              <button
+                type="button"
+                onClick={() => void runCoach(requestType)}
+                disabled={loading}
+                style={{
+                  border: 'none',
+                  borderRadius: 11,
+                  padding: '10px 12px',
+                  background: loading ? 'rgba(255,77,31,0.45)' : 'var(--orange)',
+                  color: 'white',
+                  fontWeight: 700,
+                  cursor: loading ? 'wait' : 'pointer',
+                }}
+              >
+                {loading ? 'Sto leggendo i dati...' : 'Lancia coach'}
+              </button>
+              <div className="mono" style={{ fontSize: 10, color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                Con `OPENAI_API_KEY` il coach usa il modello AI. Senza chiave, usa il fallback analitico locale.
+              </div>
+            </div>
+          </div>
+        </>
       )}
 
       {error && (
@@ -312,7 +364,7 @@ export default function CoachPanel() {
         </div>
       )}
 
-      {response && (
+      {!collapsed && response && (
         <div style={{ marginTop: 16, display: 'grid', gap: 12 }}>
           <div style={{ padding: '12px 13px', borderRadius: 11, background: 'rgba(255,255,255,0.025)', border: '1px solid var(--border)' }}>
             <div className="mono" style={{ fontSize: 9, color: 'var(--text-dim)', letterSpacing: '0.18em', marginBottom: 8 }}>
@@ -322,54 +374,64 @@ export default function CoachPanel() {
             <div style={{ fontSize: 13, lineHeight: 1.55, color: 'var(--text-dim)', marginTop: 6 }}>{response.recommendation}</div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 8 }}>
-            <div style={{ padding: '11px 12px', borderRadius: 11, background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)' }}>
-              <div className="mono" style={{ fontSize: 9, color: 'var(--text-dim)', letterSpacing: '0.18em', marginBottom: 6 }}>
-                LEGENDA
-              </div>
-              <div style={{ fontSize: 12.5, color: 'var(--text)', lineHeight: 1.45 }}>
-                Il coach usa i dati per dire se il carico è gestibile, da tenere sotto controllo o da correggere.
-              </div>
+          <div style={{ padding: '11px 12px', borderRadius: 11, background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)' }}>
+            <div className="mono" style={{ fontSize: 9, color: 'var(--text-dim)', letterSpacing: '0.18em', marginBottom: 6 }}>
+              STATO ATTUALE
             </div>
-            <div style={{ padding: '11px 12px', borderRadius: 11, background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)' }}>
-              <div className="mono" style={{ fontSize: 9, color: 'var(--text-dim)', letterSpacing: '0.18em', marginBottom: 6 }}>
-                STATO ATTUALE
-              </div>
-              <div style={{ fontSize: 12.5, color: 'var(--text)', lineHeight: 1.45 }}>
-                {response.risk_level === 'high'
-                  ? 'Serve prudenza sulla prossima uscita.'
-                  : response.risk_level === 'medium'
-                    ? 'Piano ok, ma con attenzione.'
-                    : 'Stato buono, continua così.'}
-              </div>
+            <div style={{ fontSize: 12.5, color: 'var(--text)', lineHeight: 1.45 }}>
+              {response.risk_level === 'high'
+                ? 'Serve prudenza sulla prossima uscita.'
+                : response.risk_level === 'medium'
+                  ? 'Piano ok, ma con attenzione.'
+                  : 'Stato buono, continua così.'}
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 8 }}>
-            <div style={{ padding: '12px 13px', borderRadius: 11, background: 'rgba(58,126,255,0.07)', border: '1px solid rgba(58,126,255,0.18)' }}>
-              <div className="mono" style={{ fontSize: 9, color: 'var(--blue)', letterSpacing: '0.18em', marginBottom: 8 }}>
-                COSA CONTA
-              </div>
-              <ul style={{ paddingLeft: 16, display: 'grid', gap: 5, color: 'var(--text-dim)', fontSize: 12.5, lineHeight: 1.45 }}>
-                {response.key_points.map((item) => (
-                  <li key={item}>{item}</li>
-                ))}
-              </ul>
-            </div>
+          <button
+            type="button"
+            onClick={() => setShowDetails((value) => !value)}
+            style={{
+              border: '1px solid var(--border)',
+              background: 'rgba(255,255,255,0.02)',
+              color: 'var(--text)',
+              borderRadius: 999,
+              padding: '8px 12px',
+              fontSize: 11,
+              fontWeight: 700,
+              cursor: 'pointer',
+              justifySelf: 'start',
+            }}
+          >
+            {showDetails ? 'Nascondi dettagli' : 'Mostra dettagli'}
+          </button>
 
-            <div style={{ padding: '12px 13px', borderRadius: 11, background: 'rgba(255,201,60,0.07)', border: '1px solid rgba(255,201,60,0.16)' }}>
-              <div className="mono" style={{ fontSize: 9, color: 'var(--yellow)', letterSpacing: '0.18em', marginBottom: 8 }}>
-                COSA NON VA IGNORATO
+          {showDetails && (
+            <div style={{ display: 'grid', gap: 8 }}>
+              <div style={{ padding: '12px 13px', borderRadius: 11, background: 'rgba(58,126,255,0.07)', border: '1px solid rgba(58,126,255,0.18)' }}>
+                <div className="mono" style={{ fontSize: 9, color: 'var(--blue)', letterSpacing: '0.18em', marginBottom: 8 }}>
+                  COSA CONTA
+                </div>
+                <ul style={{ paddingLeft: 16, display: 'grid', gap: 5, color: 'var(--text-dim)', fontSize: 12.5, lineHeight: 1.45 }}>
+                  {response.key_points.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
               </div>
-              <ul style={{ paddingLeft: 16, display: 'grid', gap: 5, color: 'var(--text-dim)', fontSize: 12.5, lineHeight: 1.45 }}>
-                {response.risks.map((item) => (
-                  <li key={item}>{item}</li>
-                ))}
-              </ul>
-            </div>
-          </div>
 
-          {response.next_session && (
+              <div style={{ padding: '12px 13px', borderRadius: 11, background: 'rgba(255,201,60,0.07)', border: '1px solid rgba(255,201,60,0.16)' }}>
+                <div className="mono" style={{ fontSize: 9, color: 'var(--yellow)', letterSpacing: '0.18em', marginBottom: 8 }}>
+                  COSA NON VA IGNORATO
+                </div>
+                <ul style={{ paddingLeft: 16, display: 'grid', gap: 5, color: 'var(--text-dim)', fontSize: 12.5, lineHeight: 1.45 }}>
+                  {response.risks.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          )}
+
+          {showDetails && response.next_session && (
             <div style={{ padding: '12px 13px', borderRadius: 11, background: 'rgba(0,217,144,0.06)', border: '1px solid rgba(0,217,144,0.16)' }}>
               <div className="mono" style={{ fontSize: 9, color: 'var(--green)', letterSpacing: '0.18em', marginBottom: 8 }}>
                 PROSSIMA USCITA
@@ -381,7 +443,7 @@ export default function CoachPanel() {
             </div>
           )}
 
-          {response.change_proposal && (
+          {showDetails && response.change_proposal && (
             <div style={{ padding: '12px 13px', borderRadius: 11, background: 'rgba(255,77,31,0.05)', border: '1px solid rgba(255,77,31,0.16)' }}>
               <div className="mono" style={{ fontSize: 9, color: 'var(--orange)', letterSpacing: '0.18em', marginBottom: 8 }}>
                 PROPOSTA PRONTA DA RIVEDERE
@@ -428,7 +490,7 @@ export default function CoachPanel() {
             </div>
           )}
 
-          {response.pre_run_brief && (
+          {showDetails && response.pre_run_brief && (
             <div style={{ padding: '12px 13px', borderRadius: 11, background: 'rgba(255,77,31,0.05)', border: '1px solid rgba(255,77,31,0.14)' }}>
               <div className="mono" style={{ fontSize: 9, color: 'var(--orange)', letterSpacing: '0.18em', marginBottom: 8 }}>
                 BRIEFING PRE-RUN
@@ -449,17 +511,19 @@ export default function CoachPanel() {
             </div>
           )}
 
-          <div style={{ padding: '12px 13px', borderRadius: 11, background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)' }}>
-            <div className="mono" style={{ fontSize: 9, color: 'var(--text-dim)', letterSpacing: '0.18em', marginBottom: 8 }}>
-              FONTI USATE
+          {showDetails && (
+            <div style={{ padding: '12px 13px', borderRadius: 11, background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)' }}>
+              <div className="mono" style={{ fontSize: 9, color: 'var(--text-dim)', letterSpacing: '0.18em', marginBottom: 8 }}>
+                FONTI USATE
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, color: 'var(--text-dim)', fontSize: 11.5, lineHeight: 1.45 }}>
+                <span>Sessioni: {response.source.sessions_considered}</span>
+                <span>Ultima: {response.source.latest_session_label ?? '—'}</span>
+                <span>Prossima: {response.source.next_session_label ?? '—'}</span>
+                <span>Settimana corrente: {response.source.current_week ?? '—'}</span>
+              </div>
             </div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, color: 'var(--text-dim)', fontSize: 11.5, lineHeight: 1.45 }}>
-              <span>Sessioni: {response.source.sessions_considered}</span>
-              <span>Ultima: {response.source.latest_session_label ?? '—'}</span>
-              <span>Prossima: {response.source.next_session_label ?? '—'}</span>
-              <span>Settimana corrente: {response.source.current_week ?? '—'}</span>
-            </div>
-          </div>
+          )}
         </div>
       )}
     </section>
