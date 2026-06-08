@@ -62,7 +62,7 @@ function StatusPill({ risk }: { risk: CoachResponse['risk_level'] }) {
 
 export default function CoachPanel() {
   const [requestType, setRequestType] = useState<CoachRequestType>('analyze_last_runs');
-  const [model, setModel] = useState('claude-sonnet-4-6');
+  const [model, setModel] = useState('claude-haiku-4-5-20251001');
   const [userMessage, setUserMessage] = useState('');
   const [response, setResponse] = useState<CoachResponse | null>(null);
   const [loading, setLoading] = useState(false);
