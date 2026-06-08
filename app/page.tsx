@@ -72,6 +72,12 @@ const parseLocalDate = (value: string) => {
   return new Date(year, month - 1, day);
 };
 
+const parseLocalDateEnd = (value: string) => {
+  const d = parseLocalDate(value);
+  d.setHours(23, 59, 59, 999);
+  return d;
+};
+
 const fmtDate = (d: string) =>
   parseLocalDate(d).toLocaleDateString('it-IT', { day: '2-digit', month: 'short' });
 
@@ -262,7 +268,7 @@ export default function Dashboard() {
 
       const currentWeek = settimane.find(({ data_inizio, data_fine }) => {
         const start = parseLocalDate(data_inizio);
-        const end = parseLocalDate(data_fine);
+        const end = parseLocalDateEnd(data_fine);
         return now >= start && now <= end;
       })?.settimana;
 
@@ -400,7 +406,7 @@ export default function Dashboard() {
           {
             tag: 'SETTIMANA',
             val: `${planByWeek.find(w => {
-              return w.meta && now >= parseLocalDate(w.meta.data_inizio) && now <= parseLocalDate(w.meta.data_fine);
+              return w.meta && now >= parseLocalDate(w.meta.data_inizio) && now <= parseLocalDateEnd(w.meta.data_fine);
             })?.week ?? '—'}`,
             sub: `di ${settimane.length} totali`,
             color: 'var(--text)',
@@ -538,7 +544,7 @@ export default function Dashboard() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 10 }}>
           {planByWeek.map(({ week, meta, items }) => {
             const start    = meta ? parseLocalDate(meta.data_inizio) : null;
-            const end      = meta ? parseLocalDate(meta.data_fine)   : null;
+            const end      = meta ? parseLocalDateEnd(meta.data_fine) : null;
             const isCurrent = start && end && now >= start && now <= end;
             const isPast    = end && now > end;
             const isRace    = week === 6;
